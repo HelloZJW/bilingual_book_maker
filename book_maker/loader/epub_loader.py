@@ -98,10 +98,9 @@ class EPUBBookLoader(BaseBookLoader):
         )
 
         pbar = tqdm(total=self.test_num) if self.is_test else tqdm(total=all_p_length)
-        index = 0
-        p_to_save_len = len(self.p_to_save)
+        
         try:
-            for idx,item in  enumerate(self.origin_book.get_items()):
+            for item in  self.origin_book.get_items():
                 if item.get_type() == ITEM_DOCUMENT:
                     soup = bs(item.content, "html.parser")
 
@@ -110,27 +109,35 @@ class EPUBBookLoader(BaseBookLoader):
                         p_list.extend(soup.findAll(text=True))
 
                     new_p_txt = ""
+
                     tmp = ""
-                    tmp_idx = 0
-                    while(tmp_idx < len(p_list)):
-                        print("do repeat, start=",tmp_idx, "len p_list", len(p_list))
-                        for idx in range(tmp_idx, len(p_list)):
-                            p = p_list[idx]
-                            tmp += ( "<p>" + p.text + "</p>")
-                            index+=1
-                            if index % 20 == 0:
-                                self._save_progress()
-                            tmp_idx = idx+1
-                            if(len(tmp) > 1000):
-                                break
-                        new_p_txt += self.translate_model.translate(tmp)
-            
+                    for idx in range(0, len(p_list)):
+                        p = p_list[idx]
+                        
+                        tmp +=  "<p>" + p.text + "</p>"
+                        if(len(tmp) > 2000):
+                            new_p_txt += self.translate_model.translate(tmp)
+                            # new_p_txt += tmp
+                            tmp = ""
+                        
+                        if idx == len(p_list) - 1:
+                            new_p_txt += self.translate_model.translate(tmp)
+                            # new_p_txt += tmp
+                            tmp = ""
+
                     tmp_soup = bs(new_p_txt, "html.parser")
                     tmp_p_list = tmp_soup.findAll(trans_taglist)
+
+                    print(len(p_list))
+                    print(len(tmp_p_list))
+                    print(new_p_txt)
                     
                     for idx, p in enumerate(p_list):
                         # new_p = copy(p)
                         # print(new_p)
+                        if idx > len(tmp_p_list) - 1:
+                            continue
+
                         p.string = tmp_p_list[idx].text
 
                         # if self.resume and index < p_to_save_len:

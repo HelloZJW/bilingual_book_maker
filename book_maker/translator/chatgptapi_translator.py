@@ -12,7 +12,7 @@ PROMPT_ENV_MAP = {
 
 
 class ChatGPTAPI(Base):
-    DEFAULT_PROMPT = "Please help me to translate,`{text}` to {language}, please return only translated content not include the origin text. remain html tag if it has."
+    DEFAULT_PROMPT = "Please help me to translate,`{text}` to {language}, please return only translated content not include the origin text. remain all html tag if it has."
 
     def __init__(
         self,
