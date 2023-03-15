@@ -101,80 +101,50 @@ class EPUBBookLoader(BaseBookLoader):
         index = 0
         p_to_save_len = len(self.p_to_save)
         try:
-            for item in self.origin_book.get_items():
+            for idx,item in  enumerate(self.origin_book.get_items()):
                 if item.get_type() == ITEM_DOCUMENT:
                     soup = bs(item.content, "html.parser")
 
                     p_list = soup.findAll(trans_taglist)
                     if self.allow_navigable_strings:
                         p_list.extend(soup.findAll(text=True))
-                    is_test_done = self.is_test and index > self.test_num
 
-                    print(p_list)
+                    new_p_txt = ""
                     tmp = ""
-                    for p in p_list:
-                        tmp += ( "<p>" + p.text + "</p>")
-
-                    print("tmp====>",tmp)
-
-                    new_p_txt = self.translate_model.translate(tmp)
-                    
+                    tmp_idx = 0
+                    while(tmp_idx < len(p_list)):
+                        print("do repeat, start=",tmp_idx, "len p_list", len(p_list))
+                        for idx in range(tmp_idx, len(p_list)):
+                            p = p_list[idx]
+                            tmp += ( "<p>" + p.text + "</p>")
+                            index+=1
+                            if index % 20 == 0:
+                                self._save_progress()
+                            tmp_idx = idx+1
+                            if(len(tmp) > 1000):
+                                break
+                        new_p_txt += self.translate_model.translate(tmp)
+            
                     tmp_soup = bs(new_p_txt, "html.parser")
                     tmp_p_list = tmp_soup.findAll(trans_taglist)
-                    print(tmp_p_list)
-
-                    for p in tmp_p_list:
-                        print("p====>",p.text)
-
                     
-                    for p,idx in p_list:
-                        if is_test_done or not p.text or self._is_special_text(p.text):
-                            continue
-                        new_p = copy(p)
-                        # TODO banch of p to translate then combine
-                        # PR welcome here
-                        if self.resume and index < p_to_save_len:
-                            new_p.string = self.p_to_save[index]
-                        else:
-                            if type(p) == NavigableString:
-                                new_p = tmp_p_list[idx].text
-                                self.p_to_save.append(new_p)
-                            else:
-                                new_p.string = tmp_p_list[idx].text
-                                self.p_to_save.append(new_p.text)
-                        p.insert_after(new_p)
-                        index += 1
-                        if index % 20 == 0:
-                            self._save_progress()
-                        # pbar.update(delta) not pbar.update(index)?
-                        pbar.update(1)
-                        if self.is_test and index >= self.test_num:
-                            break
-                        
+                    for idx, p in enumerate(p_list):
+                        # new_p = copy(p)
+                        # print(new_p)
+                        p.string = tmp_p_list[idx].text
 
-                    # for p in p_list:
-                    #     if is_test_done or not p.text or self._is_special_text(p.text):
-                    #         continue
-                    #     new_p = copy(p)
-                    #     # TODO banch of p to translate then combine
-                    #     # PR welcome here
-                    #     if self.resume and index < p_to_save_len:
-                    #         new_p.string = self.p_to_save[index]
-                    #     else:
-                    #         if type(p) == NavigableString:
-                    #             new_p = self.translate_model.translate(p.text)
-                    #             self.p_to_save.append(new_p)
-                    #         else:
-                    #             new_p.string = self.translate_model.translate(p.text)
-                    #             self.p_to_save.append(new_p.text)
-                    #     p.insert_after(new_p)
-                    #     index += 1
-                    #     if index % 20 == 0:
-                    #         self._save_progress()
-                    #     # pbar.update(delta) not pbar.update(index)?
-                    #     pbar.update(1)
-                    #     if self.is_test and index >= self.test_num:
-                    #         break
+                        # if self.resume and index < p_to_save_len:
+                        #     new_p.string = self.p_to_save[index]
+                        # else:
+                        #     if type(p) == NavigableString:
+                        #         new_p = tmp_p_list[idx].text
+                        #         self.p_to_save.append(new_p)
+                        #     else:
+                        #         new_p.string = tmp_p_list[idx].text
+                        #         self.p_to_save.append(new_p.text)
+                        # p.insert_after(new_p)
+                        pbar.update(1)
+
                     item.content = soup.prettify().encode()
                 new_book.add_item(item)
             name, _ = os.path.splitext(self.epub_name)
