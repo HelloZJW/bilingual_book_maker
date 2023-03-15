@@ -83,6 +83,7 @@ class EPUBBookLoader(BaseBookLoader):
         new_book = self._make_new_book(self.origin_book)
         all_items = list(self.origin_book.get_items())
         trans_taglist = self.translate_tags.split(",")
+
         all_p_length = sum(
             0
             if i.get_type() != ITEM_DOCUMENT
@@ -95,6 +96,7 @@ class EPUBBookLoader(BaseBookLoader):
             else len(bs(i.content, "html.parser").findAll(text=True))
             for i in all_items
         )
+
         pbar = tqdm(total=self.test_num) if self.is_test else tqdm(total=all_p_length)
         index = 0
         p_to_save_len = len(self.p_to_save)
@@ -102,11 +104,30 @@ class EPUBBookLoader(BaseBookLoader):
             for item in self.origin_book.get_items():
                 if item.get_type() == ITEM_DOCUMENT:
                     soup = bs(item.content, "html.parser")
+
                     p_list = soup.findAll(trans_taglist)
                     if self.allow_navigable_strings:
                         p_list.extend(soup.findAll(text=True))
                     is_test_done = self.is_test and index > self.test_num
+
+                    print(p_list)
+                    tmp = ""
                     for p in p_list:
+                        tmp += ( "<p>" + p.text + "</p>")
+
+                    print("tmp====>",tmp)
+
+                    new_p_txt = self.translate_model.translate(tmp)
+                    
+                    tmp_soup = bs(new_p_txt, "html.parser")
+                    tmp_p_list = tmp_soup.findAll(trans_taglist)
+                    print(tmp_p_list)
+
+                    for p in tmp_p_list:
+                        print("p====>",p.text)
+
+                    
+                    for p,idx in p_list:
                         if is_test_done or not p.text or self._is_special_text(p.text):
                             continue
                         new_p = copy(p)
@@ -116,10 +137,10 @@ class EPUBBookLoader(BaseBookLoader):
                             new_p.string = self.p_to_save[index]
                         else:
                             if type(p) == NavigableString:
-                                new_p = self.translate_model.translate(p.text)
+                                new_p = tmp_p_list[idx].text
                                 self.p_to_save.append(new_p)
                             else:
-                                new_p.string = self.translate_model.translate(p.text)
+                                new_p.string = tmp_p_list[idx].text
                                 self.p_to_save.append(new_p.text)
                         p.insert_after(new_p)
                         index += 1
@@ -129,6 +150,31 @@ class EPUBBookLoader(BaseBookLoader):
                         pbar.update(1)
                         if self.is_test and index >= self.test_num:
                             break
+                        
+
+                    # for p in p_list:
+                    #     if is_test_done or not p.text or self._is_special_text(p.text):
+                    #         continue
+                    #     new_p = copy(p)
+                    #     # TODO banch of p to translate then combine
+                    #     # PR welcome here
+                    #     if self.resume and index < p_to_save_len:
+                    #         new_p.string = self.p_to_save[index]
+                    #     else:
+                    #         if type(p) == NavigableString:
+                    #             new_p = self.translate_model.translate(p.text)
+                    #             self.p_to_save.append(new_p)
+                    #         else:
+                    #             new_p.string = self.translate_model.translate(p.text)
+                    #             self.p_to_save.append(new_p.text)
+                    #     p.insert_after(new_p)
+                    #     index += 1
+                    #     if index % 20 == 0:
+                    #         self._save_progress()
+                    #     # pbar.update(delta) not pbar.update(index)?
+                    #     pbar.update(1)
+                    #     if self.is_test and index >= self.test_num:
+                    #         break
                     item.content = soup.prettify().encode()
                 new_book.add_item(item)
             name, _ = os.path.splitext(self.epub_name)
