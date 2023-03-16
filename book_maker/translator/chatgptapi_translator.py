@@ -12,8 +12,12 @@ PROMPT_ENV_MAP = {
 
 
 class ChatGPTAPI(Base):
-    DEFAULT_PROMPT = "Please help me to translate,`{text}` to {language}, please return only translated content not include the origin text. remain all html tag if it has."
+    # DEFAULT_PROMPT = "Please help me to translate,`{text}` to {language}, please return only translated content not include the origin text. remain all html tag if it has."
 
+    DEFAULT_PROMPT = "将以下文章翻译成中文，保留所有的 <p> 标签，不允许合并标签，如 <p>You</p><p>are</p><p>nice</p> 最终翻译成 <p>你</p><p>很</p><p>好</p>, 下面是需要翻译的文章：`{text}`"
+
+    DEFAULT_SYSTEM_PROMPT = "下面我让你来充当翻译家，你的目标是把任何语言翻译成中文，请翻译时不要带翻译腔，而是要翻译得自然、流畅和地道，使用优美和高雅的表达方式。"
+    
     def __init__(
         self,
         key,
@@ -38,6 +42,7 @@ class ChatGPTAPI(Base):
                 "OPENAI_API_SYS_MSG"
             )  # XXX: for backward compatability, deprecate soon
             or environ.get(PROMPT_ENV_MAP["system"])
+            or self.DEFAULT_SYSTEM_PROMPT
         )
 
     def rotate_key(self):
@@ -48,14 +53,12 @@ class ChatGPTAPI(Base):
         messages = []
         if self.prompt_sys_msg:
             messages.append(
-                {"role": "system", "content": self.prompt_sys_msg},
+                {"role": "system", "content": self.prompt_sys_msg.format(text=text, language=self.language)},
             )
         messages.append(
             {
                 "role": "user",
-                "content": self.prompt_template.format(
-                    text=text, language=self.language
-                ),
+                "content":text,
             }
         )
 

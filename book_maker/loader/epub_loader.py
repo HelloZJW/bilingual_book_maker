@@ -99,6 +99,7 @@ class EPUBBookLoader(BaseBookLoader):
 
         pbar = tqdm(total=self.test_num) if self.is_test else tqdm(total=all_p_length)
         
+        
         try:
             for item in  self.origin_book.get_items():
                 if item.get_type() == ITEM_DOCUMENT:
@@ -109,50 +110,29 @@ class EPUBBookLoader(BaseBookLoader):
                         p_list.extend(soup.findAll(text=True))
 
                     new_p_txt = ""
-
                     tmp = ""
+
                     for idx in range(0, len(p_list)):
                         p = p_list[idx]
                         
+                        if len(p.text) == 0:
+                            continue
+
                         tmp +=  "<p>" + p.text + "</p>"
+
                         if(len(tmp) > 2000):
                             new_p_txt += self.translate_model.translate(tmp)
-                            # new_p_txt += tmp
                             tmp = ""
+                            print(f"process: {idx/len(p_list)*100}%")
                         
                         if idx == len(p_list) - 1:
                             new_p_txt += self.translate_model.translate(tmp)
-                            # new_p_txt += tmp
                             tmp = ""
+                            print(f"process: {idx/len(p_list)*100}%")
 
                     tmp_soup = bs(new_p_txt, "html.parser")
-                    tmp_p_list = tmp_soup.findAll(trans_taglist)
 
-                    print(len(p_list))
-                    print(len(tmp_p_list))
-                    print(new_p_txt)
-                    
-                    for idx, p in enumerate(p_list):
-                        # new_p = copy(p)
-                        # print(new_p)
-                        if idx > len(tmp_p_list) - 1:
-                            continue
-
-                        p.string = tmp_p_list[idx].text
-
-                        # if self.resume and index < p_to_save_len:
-                        #     new_p.string = self.p_to_save[index]
-                        # else:
-                        #     if type(p) == NavigableString:
-                        #         new_p = tmp_p_list[idx].text
-                        #         self.p_to_save.append(new_p)
-                        #     else:
-                        #         new_p.string = tmp_p_list[idx].text
-                        #         self.p_to_save.append(new_p.text)
-                        # p.insert_after(new_p)
-                        pbar.update(1)
-
-                    item.content = soup.prettify().encode()
+                    item.content = tmp_soup.prettify().encode()
                 new_book.add_item(item)
             name, _ = os.path.splitext(self.epub_name)
             epub.write_epub(f"{name}_bilingual.epub", new_book, {})
